@@ -1,18 +1,21 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupAPI() *gin.Engine {
+func SetupAPI(uri string) {
 	router := gin.Default()
 
 	// Welcome Announcement
 	router.GET("/", welcomeController)
 
-	return router
+	if err := router.Run(uri); err != nil {
+		log.Fatal("Oops! Couldn't starting the server:", err)
+	}
 }
 
 func welcomeController(c *gin.Context) {
