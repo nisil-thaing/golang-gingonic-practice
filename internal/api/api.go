@@ -5,13 +5,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nisil-thaing/golang-gingonic-practice/internal/app/auth"
 )
 
 func SetupAPI(uri string) {
 	router := gin.Default()
 
+	publicRouter := router.Group("/api")
 	// Welcome Announcement
-	router.GET("/", welcomeController)
+	publicRouter.GET("/", welcomeController)
+
+	auth.SetupRoutes(publicRouter.Group("/auth"))
 
 	if err := router.Run(uri); err != nil {
 		log.Fatal("Oops! Couldn't starting the server:", err)
