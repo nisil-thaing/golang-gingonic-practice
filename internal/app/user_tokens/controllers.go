@@ -1,6 +1,7 @@
 package usertokens
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func UpdateUserTokens(ctx mongo.SessionContext, user users.UserSchema, secretKey string) (*UserTokensPublicInfo, error) {
+func UpdateUserTokens(ctx context.Context, user users.UserSchema, secretKey string) (*UserTokensPublicInfo, error) {
 	var dbClient *mongo.Client = database.GetDBInstance()
 	var userTokensCollection *mongo.Collection = database.OpenCollection(dbClient, "user_tokens")
 	var existingUserTokensDetails UserTokenSchema

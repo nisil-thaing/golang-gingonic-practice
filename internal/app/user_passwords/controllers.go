@@ -1,6 +1,7 @@
 package userpasswords
 
 import (
+	"context"
 	"time"
 
 	"github.com/nisil-thaing/golang-gingonic-practice/internal/database"
@@ -11,7 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func UpdateUserPassword(ctx mongo.SessionContext, userId string, newPassword string) error {
+func UpdateUserPassword(ctx context.Context, userId string, newPassword string) error {
 	var dbClient *mongo.Client = database.GetDBInstance()
 	var userPasswordsCollection *mongo.Collection = database.OpenCollection(dbClient, "user_passwords")
 
@@ -26,14 +27,12 @@ func UpdateUserPassword(ctx mongo.SessionContext, userId string, newPassword str
 	if err != nil {
 		id := primitive.NewObjectID()
 		salt, err := GenerateSalt(bcrypt.DefaultCost)
-
 		if err != nil {
 			return err
 		}
 
 		combinedPasswordAndSalt := append([]byte(newPassword), []byte(salt)...)
 		hashedPassword, err := bcrypt.GenerateFromPassword(combinedPasswordAndSalt, bcrypt.DefaultCost)
-
 		if err != nil {
 			return err
 		}
@@ -48,27 +47,28 @@ func UpdateUserPassword(ctx mongo.SessionContext, userId string, newPassword str
 		}
 
 		_, err = userPasswordsCollection.InsertOne(ctx, newUserPasswordDetails)
-	} else {
-		combinedPasswordAndSalt := append([]byte(newPassword), []byte(existingUserPasswordStored.Salt)...)
-		hashedPassword, err := bcrypt.GenerateFromPassword(combinedPasswordAndSalt, bcrypt.DefaultCost)
 
-		if err != nil {
-			return err
-		}
-
-		var updatingData primitive.D
-		updatingData = append(updatingData, bson.E{Key: "hash", Value: string(hashedPassword)})
-		updatingData = append(updatingData, bson.E{Key: "updated_at", Value: currentTime})
-
-		upsert := false
-		opt := options.UpdateOptions{Upsert: &upsert}
-		_, err = userPasswordsCollection.UpdateOne(
-			ctx,
-			filter,
-			bson.D{{Key: "$set", Value: updatingData}},
-			&opt,
-		)
+		return err
 	}
+
+	combinedPasswordAndSalt := append([]byte(newPassword), []byte(existingUserPasswordStored.Salt)...)
+	hashedPassword, err := bcrypt.GenerateFromPassword(combinedPasswordAndSalt, bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	var updatingData primitive.D
+	updatingData = append(updatingData, bson.E{Key: "hash", Value: string(hashedPassword)})
+	updatingData = append(updatingData, bson.E{Key: "updated_at", Value: currentTime})
+
+	upsert := false
+	opt := options.UpdateOptions{Upsert: &upsert}
+	_, err = userPasswordsCollection.UpdateOne(
+		ctx,
+		filter,
+		bson.D{{Key: "$set", Value: updatingData}},
+		&opt,
+	)
 
 	return err
 }

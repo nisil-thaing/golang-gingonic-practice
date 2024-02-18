@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -17,8 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var validate = validator.New()
@@ -63,16 +60,6 @@ func HandleRegistration(c *gin.Context) {
 		return
 	}
 
-	session, err := dbClient.StartSession()
-
-	if err != nil {
-		log.Fatal(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not open a new transaction!"})
-		return
-	}
-
-	defer session.EndSession(context.Background())
-
 	// TODO: store user data to the database
 	userID := primitive.NewObjectID()
 	userType := "USER"
@@ -86,43 +73,28 @@ func HandleRegistration(c *gin.Context) {
 		LastName:  registeringUser.LastName,
 	}
 
-	var accessToken string
-	var refreshToken string
-
-	txnFunc := func(sessionCtx mongo.SessionContext) (interface{}, error) {
-		result, err := usersCollection.InsertOne(sessionCtx, newUser)
-
-		if err != nil {
-			return nil, err
-		}
-
-		err = userpasswords.UpdateUserPassword(sessionCtx, newUser.UserID, registeringUser.Password)
-
-		if err != nil {
-			return nil, err
-		}
-
-		userTokens, err := usertokens.UpdateUserTokens(sessionCtx, newUser, secretKey)
-
-		if err != nil {
-			return nil, errors.New("Could not generate token due to some unexpected issues!")
-		}
-
-		accessToken = userTokens.AccessToken
-		refreshToken = userTokens.RefreshToken
-
-		return result, nil
-	}
-
-	txnOptions := options.Transaction().SetReadPreference(readpref.Primary())
-	_, err = session.WithTransaction(context.Background(), txnFunc, txnOptions)
-
+	_, err = usersCollection.InsertOne(ctx, newUser)
 	if err != nil {
 		log.Fatal(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	err = userpasswords.UpdateUserPassword(ctx, newUser.UserID, registeringUser.Password)
+	if err != nil {
+		log.Fatal(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	userTokens, err := usertokens.UpdateUserTokens(ctx, newUser, secretKey)
+	if err != nil {
+		log.Fatal(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate tokens due to some unexpected issues!"})
+	}
+
+	accessToken := userTokens.AccessToken
+	refreshToken := userTokens.RefreshToken
+
 	c.JSON(http.StatusOK, gin.H{"accessToken": accessToken, "refreshToken": refreshToken})
-	return
 }
