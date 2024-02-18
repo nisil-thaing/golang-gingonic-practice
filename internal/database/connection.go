@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+var defaultDBName string = "cluster0"
 var dbClient *mongo.Client
 
 func SetupDBConnection(dbUri string) {
@@ -34,4 +35,9 @@ func SetupDBConnection(dbUri string) {
 
 func GetDBInstance() *mongo.Client {
 	return dbClient
+}
+
+func OpenCollection(client *mongo.Client, collectionName string) *mongo.Collection {
+	collection := client.Database(defaultDBName).Collection(collectionName)
+	return collection
 }

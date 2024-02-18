@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type User struct {
+type UserSchema struct {
 	ID          primitive.ObjectID `bson:"_id"`
 	UserID      string             `bson:"user_id"`
 	Type        string             `bson:"type" validate:"required,eq=ADMIN|eq=USER"`
